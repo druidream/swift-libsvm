@@ -133,16 +133,16 @@ public class SVMModel
         probabilityB = probBArray! as! [Double]
     }
     
-    public func isνFeasableForData(data: DataSet) -> Bool
+    public func isνFeasableForData(_ data: DataSet) -> Bool
     {
         if (type != .ν_SVM_Classification) { return true }
         
         var label : [Int] = []
         var count : [Int] = []
         for i in 0..<data.size {
-            if let index = label.indexOf(data.classes![i]) {
+            if let index = label.index(of: data.classes![i]) {
                 //  label already found
-                count[index]++
+                count[index] += 1
             }
             else {
                 //  new label - add to list
@@ -163,7 +163,7 @@ public class SVMModel
     }
     
     ///  Method to 'train' the SVM
-    public func train(data: DataSet)
+    public func train(_ data: DataSet)
     {
         //  Training depends on the problem type
         switch (type) {
@@ -191,7 +191,7 @@ public class SVMModel
             coefficients = [[]]
             for index in 0..<data.size {    //  Get the support vector points and save them
                 if (fabs(f.α[index]) > 0.0) {
-                    totalSupportVectors++
+                    totalSupportVectors += 1
                     supportVector.append(data.inputs[index])
                     coefficients[0].append(f.α[index])
                 }
@@ -212,10 +212,10 @@ public class SVMModel
                 }
                 
                 //  Calculate weighted Cost for each class label
-                var weightedCost = [Double](count: classificationData.numClasses, repeatedValue:Cost)
+                var weightedCost = [Double](repeating:Cost, count: classificationData.numClasses)
                 if let weightMods = weightModifiers {
                     for mod in weightMods {
-                        let index = classificationData.foundLabels.indexOf(mod.classLabel)
+                        let index = classificationData.foundLabels.index(of: mod.classLabel)
                         if (index == nil) {
                             print("weight modifier label \(mod.classLabel) not found in data set")
                             continue
@@ -227,7 +227,7 @@ public class SVMModel
                 }
                 
                 //  Train numClasses * (numClasses - 1) / 2 models
-                var nonZero = [Bool](count: data.size, repeatedValue: false)
+                var nonZero = [Bool](repeating: false, count: data.size)
                 var functions: [DecisionFunction] = []
                 probabilityA = []
                 probabilityB = []
@@ -279,12 +279,12 @@ public class SVMModel
                 }
 
                 totalSupportVectors = 0
-                supportVectorCount = [Int](count: classificationData.numClasses, repeatedValue: 0)
+                supportVectorCount = [Int](repeating: 0, count: classificationData.numClasses)
                 for i in 0..<classificationData.numClasses {
                     for j in 0..<classificationData.classCount[i] {
                         if(nonZero[classificationData.classOffsets[i][j]]) {
-                            ++supportVectorCount[i]
-                            ++totalSupportVectors
+                            supportVectorCount[i] += 1
+                            totalSupportVectors += 1
                         }
                     }
                 }
@@ -305,7 +305,7 @@ public class SVMModel
                 //  Save the α's for each class permutation as a set of coefficients of the support vectors
                 coefficients = []
                 for _ in 0..<classificationData.numClasses-1 {
-                    coefficients.append([Double](count:totalSupportVectors, repeatedValue: 0.0))
+                    coefficients.append([Double](repeating: 0.0, count: totalSupportVectors))
                 }
                 var permutation = 0
                 for i in 0..<classificationData.numClasses-1 {
@@ -313,16 +313,18 @@ public class SVMModel
                         var q = coeffStart[i]
                         for index in 0..<classificationData.classCount[i] {
                             if (nonZero[classificationData.classOffsets[i][index]]) {
-                                coefficients[j-1][q++] = functions[permutation].α[index]
+                                coefficients[j-1][q] = functions[permutation].α[index]
+                                q += 1
                             }
                         }
                         q = coeffStart[j]
                         for index in 0..<classificationData.classCount[j] {
                             if (nonZero[classificationData.classOffsets[j][index]]) {
-                                coefficients[i][q++] = functions[permutation].α[index + classificationData.classCount[i]]
+                                coefficients[i][q] = functions[permutation].α[index + classificationData.classCount[i]]
+                                q += 1
                             }
                         }
-                        permutation++
+                        permutation += 1
                     }
                 }
             }
@@ -333,7 +335,7 @@ public class SVMModel
         }
     }
     
-    private func trainOne(data: DataSet, costPositive : Double, costNegative : Double, display : Bool = false) -> DecisionFunction
+    private func trainOne(_ data: DataSet, costPositive : Double, costNegative : Double, display : Bool = false) -> DecisionFunction
     {
         var solver : Solver?
         
@@ -392,13 +394,15 @@ public class SVMModel
                 let entry = solver!.α[index]
                 if(abs(entry) > 0.0)
                 {
-                    ++numSupportVectors
+                    numSupportVectors += 1
                     if let output = data.singleOutput(index) {
                         if(output > 0.0) {
-                            if(abs(entry) >= solver!.positiveUpperBound) {++numBaseSupportVectors}
+                            if(abs(entry) >= solver!.positiveUpperBound) {
+                                numBaseSupportVectors += 1}
                         }
                         else {
-                            if(abs(entry) >= solver!.negativeUpperBound) {++numBaseSupportVectors}
+                            if(abs(entry) >= solver!.negativeUpperBound) {
+                                numBaseSupportVectors += 1}
                         }
                     }
                 }
@@ -410,9 +414,9 @@ public class SVMModel
         return f
     }
     
-    public func crossValidation(data: DataSet, numberOfFolds: Int) -> [Double]
+    public func crossValidation(_ data: DataSet, numberOfFolds: Int) -> [Double]
     {
-        var target = [Double](count: data.size, repeatedValue: 0.0)
+        var target = [Double](repeating: 0.0, count: data.size)
         
         //  Limit check the number of folds
         var nFolds = numberOfFolds
@@ -436,13 +440,13 @@ public class SVMModel
                 var shuffledIndices = classificationData.classOffsets
                 for c in 0..<classificationData.numClasses {
                     for i in 0..<classificationData.classCount[c] {
-                        let j =  i + Int(rand()) % (classificationData.classCount[c] - i)
-                        swap(&shuffledIndices[c][i], &shuffledIndices[c][j])
+                        let j =  i + Int(arc4random()) % (classificationData.classCount[c] - i)
+                        shuffledIndices[c].swapAt(i, j)
                     }
                 }
                 
                 //  Get the count of items for each fold
-                var foldCount = [Int](count: nFolds, repeatedValue: 0)
+                var foldCount = [Int](repeating: 0, count: nFolds)
                 for i in 0..<nFolds {
                     for c in 0..<classificationData.numClasses {
                         foldCount[i] += (i+1) * classificationData.classCount[c] / nFolds - i * classificationData.classCount[c] / nFolds
@@ -462,7 +466,10 @@ public class SVMModel
                         let begin = i * classificationData.classCount[c] / nFolds;
                         let end = (i+1) * classificationData.classCount[c] / nFolds;
                         var j : Int
-                        for (j=begin; j<end; j++) {
+//                        for (j=begin; j<end; j++) {
+//                            perm.append(shuffledIndices[c][j])
+//                        }
+                        for j in begin..<end {
                             perm.append(shuffledIndices[c][j])
                         }
                     }
@@ -509,13 +516,13 @@ public class SVMModel
         return target
     }
     
-    func binarySVCProbability(data: DataSet, positiveLabel: Int, costPositive: Double, costNegative: Double) -> (A: Double, B: Double)
+    func binarySVCProbability(_ data: DataSet, positiveLabel: Int, costPositive: Double, costNegative: Double) -> (A: Double, B: Double)
     {
         //  Get a shuffled index set
         var perm = data.getRandomIndexSet()
         
         //  Create the array for the decision values
-        var decisionValues = [Double](count: data.size, repeatedValue: 0.0)
+        var decisionValues = [Double](repeating: 0.0, count: data.size)
         
         //  Do 5 cross-validations
         let nr_fold = 5
@@ -533,11 +540,11 @@ public class SVMModel
                 var negativeLabel = 0
                 for index in 0..<subProblem.size {
                     if (subProblem.classes![index] == positiveLabel) {
-                        countPositive++
+                        countPositive += 1
                         positiveLabel = subProblem.classes![index]
                     }
                     else {
-                        countNegative++
+                        countNegative += 1
                         negativeLabel = subProblem.classes![index]
                     }
                 }
@@ -570,7 +577,7 @@ public class SVMModel
         return sigmoidTrain(decisionValues, labels: data.classes!)
     }
 
-    func sigmoidTrain(decisionValues: [Double], labels: [Int]) -> (A: Double, B: Double)
+    func sigmoidTrain(_ decisionValues: [Double], labels: [Int]) -> (A: Double, B: Double)
     {
         //  Count the prior labels
         var prior0 = 0.0
@@ -687,7 +694,7 @@ public class SVMModel
         return (A: A, B: B)
     }
     
-    func svrProbability(data: DataSet) -> Double
+    func svrProbability(_ data: DataSet) -> Double
     {
         //  Run cross-validation without calculating probabilities
         let oldProbabilityFlag = probability
@@ -707,7 +714,7 @@ public class SVMModel
         mae=0.0
         for i in 0..<data.size {
             if (fabs(ymv[i]) > 5*std) {
-                count++
+                count += 1
             }
             else {
                 mae += fabs(ymv[i])
@@ -718,7 +725,7 @@ public class SVMModel
         return mae
     }
     
-    func groupClasses(data: DataSet) throws
+    func groupClasses(_ data: DataSet) throws
     {
         if (data.dataType != .Classification)  { throw DataTypeError.InvalidDataType }
         
@@ -733,10 +740,10 @@ public class SVMModel
         //  Get the different data labels
         for index in 0..<data.size {
             let thisClass = data.classes![index]
-            let thisClassIndex = classificationData.foundLabels.indexOf(thisClass)
+            let thisClassIndex = classificationData.foundLabels.index(of: thisClass)
             if let classIndex = thisClassIndex {
                 //  Class label found, increment count
-                classificationData.classCount[classIndex]++
+                classificationData.classCount[classIndex] += 1
                 //  Add offset of data point
                 classificationData.classOffsets[classIndex].append(index)
             }
@@ -752,7 +759,7 @@ public class SVMModel
         data.optionalData = classificationData
     }
     
-    public func predictValues(data: DataSet)
+    public func predictValues(_ data: DataSet)
     {
         //  Initialize the output variables
         data.outputs = []
@@ -790,7 +797,7 @@ public class SVMModel
                 }
                 
                 //  Allocate vote space for the classification
-                var vote = [Int](count: numClasses, repeatedValue: 0)
+                var vote = [Int](repeating: 0, count: numClasses)
                 
                 //  Initialize the decision value storage in the data set
                 var decisionValues: [Double] = []
@@ -808,12 +815,12 @@ public class SVMModel
                         }
                         sum -= ρ[permutation]
                         decisionValues.append(sum)
-                        permutation++
+                        permutation += 1
                         if (sum > 0) {
-                            vote[i]++
+                            vote[i] += 1
                         }
                         else {
-                            vote[j]++
+                            vote[j] += 1
                         }
                     }
                 }
@@ -830,7 +837,7 @@ public class SVMModel
         }
     }
     
-    public func predictOne(inputs: [Double]) -> Double
+    public func predictOne(_ inputs: [Double]) -> Double
     {
         //  Get the support vector start index for each class
         var coeffStart = [0]
@@ -855,7 +862,7 @@ public class SVMModel
         return sum
     }
     
-    public func predictOneFromBinaryClass(inputs: [Double]) -> Int
+    public func predictOneFromBinaryClass(_ inputs: [Double]) -> Int
     {
         let sum = predictOne(inputs)
         if (sum > 0) {
@@ -866,7 +873,7 @@ public class SVMModel
         }
     }
     
-    public func predictProbability(inputs: [Double]) -> Double
+    public func predictProbability(_ inputs: [Double]) -> Double
     {
         if ((type == .C_SVM_Classification || type == .ν_SVM_Classification) && probabilityA.count > 0 && probabilityB.count > 0) {
             let data = DataSet(dataType: .Classification, inputDimension: inputs.count, outputDimension: 1)
@@ -884,7 +891,7 @@ public class SVMModel
                 for j in i+1..<numClasses {
                     pairwiseProbability[i][j] = min(max(SVMModel.sigmoidPredict(data.outputs![0][k], probA: probabilityA[k], probB: probabilityB[k]), minProbability), 1.0-minProbability)
                     pairwiseProbability[j][i] = 1.0 - pairwiseProbability[i][j]
-                    k++
+                    k += 1
                 }
             }
             let probabilityEstimates = multiclassProbability(pairwiseProbability)
@@ -901,7 +908,7 @@ public class SVMModel
         }
     }
     
-    class func sigmoidPredict(decisionValue: Double, probA: Double, probB: Double) -> Double
+    class func sigmoidPredict(_ decisionValue: Double, probA: Double, probB: Double) -> Double
     {
         let fApB = decisionValue * probA + probB
         // 1-p used later; avoid catastrophic cancellation
@@ -914,7 +921,7 @@ public class SVMModel
     }
     
     // Method 2 from the multiclass_prob paper by Wu, Lin, and Weng
-    func multiclassProbability(probabilityPairs: [[Double]]) -> [Double]
+    func multiclassProbability(_ probabilityPairs: [[Double]]) -> [Double]
     {
         var p : [Double] = []
         var Q : [[Double]] = []
@@ -924,7 +931,7 @@ public class SVMModel
         
         for t in 0..<k {
             p.append(1.0 / Double(k))
-            Q.append([Double](count: k, repeatedValue: 0.0))
+            Q.append([Double](repeating: 0.0, count: k))
             for j in 0..<t {
                 Q[t][t] += probabilityPairs[j][t] * probabilityPairs[j][t]
                 Q[t][j] = Q[j][t]
@@ -938,7 +945,7 @@ public class SVMModel
         var iter = 0
         let max_iter = max(100,k)
         var pQp : Double
-        var Qp = [Double](count: k, repeatedValue: 0.0)
+        var Qp = [Double](repeating: 0.0, count: k)
         while (iter < max_iter) {
             // stopping condition, recalculate QP,pQP for numerical accuracy
             pQp=0.0
@@ -966,7 +973,7 @@ public class SVMModel
                 }
             }
             
-            iter++
+            iter += 1
         }
         
         if (iter >= max_iter) {
@@ -981,7 +988,7 @@ public class SVMModel
     public func saveToFile(path: String) throws
     {
         //  Create a property list of the SVM model
-        var modelDictionary = [String: AnyObject]()
+        var modelDictionary = [String: Any]()
         modelDictionary["type"] = type.rawValue
         modelDictionary["numClasses"] = numClasses
         modelDictionary["labels"] = labels
@@ -995,7 +1002,7 @@ public class SVMModel
         
         //  Convert to a property list (NSDictionary) and write
         let pList = NSDictionary(dictionary: modelDictionary)
-        if !pList.writeToFile(path, atomically: false) { throw SVMWriteErrors.failedWriting }
+        if !pList.write(toFile: path, atomically: false) { throw SVMWriteErrors.failedWriting }
     }
 }
 
@@ -1079,13 +1086,13 @@ internal class Solver {
     }
     
     //  Solve a classification problem
-    func solveClassification(data: DataSet, display : Bool = false)
+    func solveClassification(_ data: DataSet, display : Bool = false)
     {
         //  Let all routines have access to the data
         problemData = data
         
         //  Allocate the α array for the sub-problem (one per constraint)
-        α = [Double](count: data.size, repeatedValue: 0.0)
+        α = [Double](repeating: 0.0, count: data.size)
         
         //  Make the output array -1 or 1 for positive/negative examples
         outputs = []
@@ -1099,7 +1106,7 @@ internal class Solver {
         kernel = SVCKernel(parameters: kernelParams, data: problemData!, outputs: outputs)
         
         //  Initialize the gradients
-        gradient = [Double](count: problemData!.size, repeatedValue: -1.0)
+        gradient = [Double](repeating: -1.0, count: problemData!.size)
         
         //  Solve
         solve()
@@ -1118,7 +1125,7 @@ internal class Solver {
         }
     }
     
-    func updateAlphaStatus(index: Int)
+    func updateAlphaStatus(_ index: Int)
     {
         let cost = (outputs[index] > 0.0) ? costPositive : costNegative
         if (α[index] >= cost) {
@@ -1139,14 +1146,14 @@ internal class Solver {
         QDiagonal = kernel!.getQDiagonal()
         
         //  Initialize the alpha status
-        αStatus = [AlphaState](count: α.count, repeatedValue: .Free)
+        αStatus = [AlphaState].init(repeating: .Free, count: α.count)
         for index in 0..<αStatus.count { updateAlphaStatus(index) }
         
         //  Keep the initial gradient settings
         let initialGradient = gradient
         
         //  Initialize the gradient bars
-        gradientBar = [Double](count: gradient.count, repeatedValue: 0.0)
+        gradientBar = [Double](repeating: 0.0, count: gradient.count)
         for index in 0..<gradient.count {
             if (αStatus[index] != .LowerBound) {
                 let Q_i = kernel!.getQ(index)
@@ -1171,7 +1178,7 @@ internal class Solver {
             if let indexes = indices {
                 let i = indexes.i
                 let j = indexes.j
-                ++iter
+                iter += 1
                 print("at iteration \(iter), select indices \(i) and \(j)")
                 // update α[i] and α[j], handle bounds carefully
                 let Q_i = kernel!.getQ(i)
@@ -1420,7 +1427,7 @@ internal class Solver {
                 }
             }
             else {
-                ++numberFree
+                numberFree += 1
                 sumFree += yG
             }
         }
@@ -1436,7 +1443,7 @@ internal class Solver {
         return returnValue
     }
     
-    func solveOneClass(data: DataSet, ν: Double, display : Bool = false)
+    func solveOneClass(_ data: DataSet, ν: Double, display : Bool = false)
     {
         //  Let all routines have access to the data
         problemData = data
@@ -1464,19 +1471,19 @@ internal class Solver {
         kernel = OneClassKernel(parameters: kernelParams, data: problemData!)
         
         //  Initialize the gradients
-        gradient = [Double](count: problemData!.size, repeatedValue: 0.0)
+        gradient = [Double](repeating: 0.0, count: problemData!.size)
         
         //  Solve
         solve()
     }
     
-    func solveRegression(data: DataSet, p: Double, display : Bool = false)
+    func solveRegression(_ data: DataSet, p: Double, display : Bool = false)
     {
         //  Let all routines have access to the data
         problemData = data
         
         //  Allocate and initialize the α array for the sub-problem (two per constraint)
-        α = [Double](count: data.size*2, repeatedValue: 0.0)
+        α = [Double](repeating: 0.0, count: data.size*2)
         
         //  Create the initial gradient and the output arrays
         gradient = []
@@ -1526,7 +1533,7 @@ internal class Solver_ν : Solver
         super.init(kernelParams: kernelParams, ϵ: ϵ)
     }
     
-    override func solveClassification(data: DataSet, display: Bool) {
+    override func solveClassification(_ data: DataSet, display: Bool) {
         //  Let all routines have access to the data
         problemData = data
         
@@ -1560,7 +1567,7 @@ internal class Solver_ν : Solver
         kernel = SVCKernel(parameters: kernelParams, data: problemData!, outputs: outputs)
         
         //  Initialize the gradients
-        gradient = [Double](count: problemData!.size, repeatedValue: 0.0)
+        gradient = [Double](repeating: 0.0, count: problemData!.size)
 
         //  Solve the quadratic program
         solve()
@@ -1697,7 +1704,7 @@ internal class Solver_ν : Solver
                     lb1 = max(lb1, gradient[i])
                     break
                 case .Free:
-                    ++nr_free1
+                    nr_free1 += 1
                     sum_free1 += gradient[i]
                     break
                 }
@@ -1711,7 +1718,7 @@ internal class Solver_ν : Solver
                     lb2 = max(lb2, gradient[i])
                     break
                 case .Free:
-                    ++nr_free2
+                    nr_free2 += 1
                     sum_free2 += gradient[i]
                     break
                 }
@@ -1738,7 +1745,7 @@ internal class Solver_ν : Solver
         return last_ρ
     }
     
-    override func solveRegression(data: DataSet, p: Double, display : Bool = false)
+    override func solveRegression(_ data: DataSet, p: Double, display : Bool = false)
     {
         //  Let all routines have access to the data
         problemData = data

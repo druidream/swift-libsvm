@@ -8,7 +8,7 @@
 
 import Foundation
 
-
+typealias ErrorType = Error
 public enum DataSetType   //  data type
 {
     case Regression
@@ -109,7 +109,7 @@ public class DataSet {
         return inputs.count
     }
     
-    public func singleOutput(index: Int) -> Double?
+    public func singleOutput(_ index: Int) -> Double?
     {
         //  Validate the index
         if (index < 0) { return nil}
@@ -147,7 +147,7 @@ public class DataSet {
         classes!.append(output)
     }
     
-    public func setClass(index: Int, newClass : Int) throws
+    public func setClass(_ index: Int, newClass : Int) throws
     {
         //  Validate the data
         if (dataType != .Classification) { throw DataTypeError.DataWrongForType }
@@ -166,7 +166,7 @@ public class DataSet {
         inputs.append(input)
     }
     
-    public func getClass(index: Int) throws ->Int
+    public func getClass(_ index: Int) throws ->Int
     {
         //  Validate the data
         if (dataType != .Classification) { throw DataTypeError.DataWrongForType }
@@ -189,7 +189,7 @@ public class DataSet {
         for i in 0..<inputs.count - 1 {
             let j = Int(arc4random_uniform(UInt32(inputs.count - i))) + i
             guard i != j else { continue }
-            swap(&shuffledArray[i], &shuffledArray[j])
+            shuffledArray.swapAt(i, j)
         }
         
         return shuffledArray

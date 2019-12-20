@@ -39,7 +39,7 @@ class Kernel {
     var problemData : DataSet
     
     //  Diagonal items squared (for RBF)
-    let x_square: [Double]!
+    var x_square: [Double]!
     
     let kernalType: SVMKernalType
     //  Closure with kernal function - initialize with lazy-var to avoid 'Variable kernal_function used before initialized' error when just a 'let'
@@ -94,7 +94,7 @@ class Kernel {
         return returnArray
     }
     
-    func getQ(i: Int) ->[Double]
+    func getQ(_ i: Int) ->[Double]
     {
         return []
     }
@@ -104,7 +104,7 @@ class Kernel {
         return QDiagonal
     }
     
-    class func calcKernelValue(parameters: KernelParameters, x: [Double], y: [Double]) ->Double
+    class func calcKernelValue(_ parameters: KernelParameters, x: [Double], y: [Double]) ->Double
     {
         switch (parameters.type) {
         case .Linear:
@@ -117,15 +117,21 @@ class Kernel {
             vDSP_dotprD(x, 1, y, 1, &sum, vDSP_Length(x.count))
             var tmp = parameters.gamma * sum + parameters.coef0
             var ret = 1.0
-            
-            for var t = parameters.degree; t > 0; t/=2 {
+// dream
+//            for var t = parameters.degree; t > 0; t/=2 {
+//                if (t%2==1) { ret *= tmp }
+//                tmp = tmp * tmp
+//            }
+            var t = parameters.degree
+            while t > 0 {
                 if (t%2==1) { ret *= tmp }
                 tmp = tmp * tmp
+                t/=2
             }
             return ret
             
         case .RadialBasisFunction:
-            var diff = [Double](count: x.count, repeatedValue: 0.0)
+            var diff = [Double](repeating: 0.0, count: x.count)
             vDSP_vsubD(x, 1, y, 1, &diff, 1, vDSP_Length(x.count))
             var sum = 0.0
             vDSP_dotprD(diff, 1, diff, 1, &sum, vDSP_Length(x.count))
@@ -143,7 +149,7 @@ class Kernel {
         }
     }
     
-    func dotProduct(vector1Index : Int, _ vector2Index : Int) -> Double
+    func dotProduct(_ vector1Index : Int, _ vector2Index : Int) -> Double
     {
         var sum = 0.0
         vDSP_dotprD(problemData.inputs[vector1Index], 1, problemData.inputs[vector2Index], 1, &sum, vDSP_Length(problemData.inputDimension))
@@ -151,29 +157,35 @@ class Kernel {
         return sum
     }
     
-    func polyKernel(vector1Index : Int, _ vector2Index : Int) -> Double
+    func polyKernel(_ vector1Index : Int, _ vector2Index : Int) -> Double
     {
         var tmp = gamma * dotProduct(vector1Index, vector2Index) + coef0
         var ret = 1.0
-        
-        for var t = degree; t > 0; t/=2 {
+// dream
+//        for var t = degree; t > 0; t/=2 {
+//            if (t%2==1) { ret *= tmp }
+//            tmp = tmp * tmp
+//        }
+        var t = degree
+        while t > 0 {
             if (t%2==1) { ret *= tmp }
             tmp = tmp * tmp
+            t/=2
         }
         return ret
     }
     
-    func RBFKernel(vector1Index : Int, _ vector2Index : Int) -> Double
+    func RBFKernel(_ vector1Index : Int, _ vector2Index : Int) -> Double
     {
         return exp(-gamma*(x_square[vector1Index]+x_square[vector2Index] - 2 * dotProduct(vector1Index, vector2Index)))
     }
     
-    func sigmoidKernel(vector1Index : Int, _ vector2Index : Int) -> Double
+    func sigmoidKernel(_ vector1Index : Int, _ vector2Index : Int) -> Double
     {
         return tanh(gamma * dotProduct(vector1Index, vector2Index) + coef0)
     }
     
-    func precomputedKernel(vector1Index : Int, _ vector2Index : Int) -> Double
+    func precomputedKernel(_ vector1Index : Int, _ vector2Index : Int) -> Double
     {
         //!!  not yet implemented
         return 0.0
@@ -191,7 +203,7 @@ class SVCKernel : Kernel {
         super.init(parameters: parameters, data: data)
     }
     
-    override func getQ(i: Int) ->[Double]
+    override func getQ(_ i: Int) ->[Double]
     {
         var data: [Double] = []
         for j in 0..<problemData.size {
@@ -204,7 +216,7 @@ class SVCKernel : Kernel {
 
 class OneClassKernel : Kernel {
     
-    override func getQ(i: Int) ->[Double]
+    override func getQ(_ i: Int) ->[Double]
     {
         var data: [Double] = []
         for j in 0..<problemData.size {
@@ -220,8 +232,8 @@ class SVRKernel : Kernel {
     var sign : [Double]
     
     override init(parameters: KernelParameters, data: DataSet) {
-        sign = [Double](count: data.size, repeatedValue: 1.0)
-        sign += [Double](count: data.size, repeatedValue: -1.0)
+        sign = [Double](repeating: 1.0, count: data.size)
+        sign += [Double](repeating: -1.0, count: data.size)
         
         super.init(parameters: parameters, data: data)
     }
@@ -236,7 +248,7 @@ class SVRKernel : Kernel {
         return returnArray + returnArray
     }
     
-    override func getQ(i: Int) ->[Double]
+    override func getQ(_ i: Int) ->[Double]
     {
         var real_i = i
         if (real_i >= problemData.size) {real_i -= problemData.size}
